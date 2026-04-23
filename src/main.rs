@@ -9,6 +9,8 @@ mod input;
 mod state;
 mod winit;
 
+use std::io::IsTerminal;
+
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
 pub use state::Enki;
 
@@ -44,7 +46,8 @@ fn init_logging() {
     if let Ok(env_filter) = tracing_subscriber::EnvFilter::try_from_default_env() {
         tracing_subscriber::fmt().with_env_filter(env_filter).init();
     } else {
-        tracing_subscriber::fmt().init();
+        let is_tty = std::io::stdout().is_terminal();
+        tracing_subscriber::fmt().with_ansi(is_tty).init();
     }
 }
 
