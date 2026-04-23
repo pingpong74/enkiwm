@@ -35,9 +35,33 @@ impl Enki {
                                 return FilterResult::Intercept(());
                             }
                             if data.modal_mode {
-                                match handle.modified_sym() {
-                                    _ => {}
+                                let pan_offset = match handle.modified_sym() {
+                                    Keysym::l => Some((1, 0)),
+                                    Keysym::h => Some((-1, 0)),
+                                    Keysym::j => Some((0, -1)),
+                                    Keysym::k => Some((0, 1)),
+                                    _ => None,
+                                };
+                                if let Some((x, y)) = pan_offset {
+                                    let target_view =
+                                        data.space.outputs().next().cloned().and_then(|output| {
+                                            data.space
+                                                .output_geometry(&output)
+                                                .map(|geo| (output, geo.loc, geo.size))
+                                        });
+
+                                    if let Some((output, loc, size)) = target_view {
+                                        data.space.map_output(
+                                            &output,
+                                            (loc.x + 500 * x, loc.y - 500 * y),
+                                        );
+
+                                        data.space.elements().for_each(|window| {
+                                            window.toplevel().unwrap().send_pending_configure();
+                                        });
+                                    }
                                 }
+
                                 return FilterResult::Intercept(());
                             }
                         }
