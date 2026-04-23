@@ -53,7 +53,7 @@ impl Enki {
                                     if let Some((output, loc, size)) = target_view {
                                         data.space.map_output(
                                             &output,
-                                            (loc.x + 500 * x, loc.y - 500 * y),
+                                            (loc.x + size.w * x, loc.y - size.h * y),
                                         );
 
                                         data.space.elements().for_each(|window| {

@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use smithay::{
     delegate_xdg_shell,
-    desktop::{find_popup_root_surface, get_popup_toplevel_coords, PopupKind, PopupManager, Space, Window},
+    desktop::{
+        find_popup_root_surface, get_popup_toplevel_coords, PopupKind, PopupManager, Space, Window,
+    },
     input::{
         pointer::{Focus, GrabStartData as PointerGrabStartData},
         Seat,
@@ -33,8 +37,26 @@ impl XdgShellHandler for Enki {
     }
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
-        let window = Window::new_wayland_window(surface);
-        self.space.map_element(window, (0, 0), false);
+        let window = Window::new_wayland_window(surface.clone());
+
+        // Fallback incase window opens before monitor is fully initialised
+        let (monitor_width, monitor_height) = self
+            .space
+            .outputs()
+            .next()
+            .and_then(|output| self.space.output_geometry(output))
+            .map(|geo| (geo.size.w, geo.size.h))
+            .unwrap_or((1920, 1080));
+
+        let window_count = self.space.elements().count();
+        let grid = ((window_count as i32) * monitor_width, 0);
+        self.space.map_element(window, grid, false);
+
+        surface.with_pending_state(|state| {
+            state.size = Some((monitor_width, monitor_height).into());
+        });
+
+        surface.send_configure();
     }
 
     fn new_popup(&mut self, surface: PopupSurface, _positioner: PositionerState) {
@@ -42,7 +64,12 @@ impl XdgShellHandler for Enki {
         let _ = self.popups.track_popup(PopupKind::Xdg(surface));
     }
 
-    fn reposition_request(&mut self, surface: PopupSurface, positioner: PositionerState, token: u32) {
+    fn reposition_request(
+        &mut self,
+        surface: PopupSurface,
+        positioner: PositionerState,
+        token: u32,
+    ) {
         surface.with_pending_state(|state| {
             let geometry = positioner.get_geometry();
             state.geometry = geometry;
