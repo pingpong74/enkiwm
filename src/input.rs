@@ -35,7 +35,8 @@ impl Enki {
                                 return FilterResult::Intercept(());
                             }
                             if data.modal_mode {
-                                let pan_offset = match handle.modified_sym() {
+                                let sym = handle.modified_sym();
+                                let pan_offset = match sym {
                                     Keysym::l => Some((1, 0)),
                                     Keysym::h => Some((-1, 0)),
                                     Keysym::j => Some((0, -1)),
@@ -60,6 +61,15 @@ impl Enki {
                                             window.toplevel().unwrap().send_pending_configure();
                                         });
                                     }
+                                }
+
+                                let program = match sym {
+                                    Keysym::Return => Some("alacritty"),
+                                    Keysym::w => Some("weston-terminal"),
+                                    _ => None,
+                                };
+                                if let Some(program) = program {
+                                    std::process::Command::new(program).spawn().ok();
                                 }
 
                                 return FilterResult::Intercept(());
