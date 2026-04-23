@@ -1,0 +1,10 @@
+[package]
+name = "enki"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+bitflags = "2.2.1"
+smithay = { git = "https://github.com/Smithay/smithay", branch = "master", features = ["backend_winit", "wayland_frontend", "desktop"] }
