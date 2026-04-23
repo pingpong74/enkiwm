@@ -27,8 +27,7 @@ use smithay::{
 };
 
 use crate::{
-    grabs::{MoveSurfaceGrab, ResizeSurfaceGrab},
-    Enki,
+    grabs::{MoveSurfaceGrab, ResizeSurfaceGrab}, layout, Enki
 };
 
 impl XdgShellHandler for Enki {
@@ -48,10 +47,10 @@ impl XdgShellHandler for Enki {
             .map(|geo| (geo.size.w, geo.size.h))
             .unwrap_or((1920, 1080));
 
-        let window_count = self.space.elements().count();
-        let grid = ((window_count as i32) * monitor_width, 0);
-        self.space.map_element(window, grid, false);
+        
+        let grid = layout::Grid::find_first_empty_slot(&self.space, monitor_width, monitor_height);
 
+        self.space.map_element(window, grid, false);
         surface.with_pending_state(|state| {
             state.size = Some((monitor_width, monitor_height).into());
         });

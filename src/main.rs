@@ -8,6 +8,7 @@ mod grabs;
 mod input;
 mod state;
 mod winit;
+mod layout;
 
 use std::io::IsTerminal;
 
