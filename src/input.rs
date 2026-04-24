@@ -50,24 +50,29 @@ impl Enki {
                                 if let Some(dir_flipped) = dir_flipped {
                                     let dir = dir_flipped * IVec2::FLIP_Y;
 
+                                    let grow_dir = |span: &mut i32, origin: &mut i32, d: i32| {
+                                        *span += d.abs();
+                                        *origin -= (d < 0) as i32;
+                                    };
+
+                                    let shrink_dir = |span: &mut i32, origin: &mut i32, d: i32| {
+                                        let old = *span;
+                                        *span = (*span - d.abs()).max(1);
+
+                                        if *span < old {
+                                            *origin += (d < 0) as i32;
+                                        }
+                                    };
+
+                                    let camera = &mut data.camera;
                                     if modifiers.shift {
-                                        data.camera.span.x += dir.x.abs();
-                                        data.camera.origin.x -= i32::from(dir.x < 0);
-                                        data.camera.span.y += dir.y.abs();
-                                        data.camera.origin.y -= i32::from(dir.y < 0);
+                                        grow_dir(&mut camera.span.x, &mut camera.origin.x, dir.x);
+                                        grow_dir(&mut camera.span.y, &mut camera.origin.y, dir.y);
                                     } else if modifiers.alt {
-                                        let span_x = (data.camera.span.x - dir.x.abs()).max(1);
-                                        if span_x != data.camera.span.x {
-                                            data.camera.span.x = span_x;
-                                            data.camera.origin.x += i32::from(dir.x < 0);
-                                        }
-                                        let span_y = (data.camera.span.y - dir.y.abs()).max(1);
-                                        if span_y != data.camera.span.y {
-                                            data.camera.span.y = span_y;
-                                            data.camera.origin.y += i32::from(dir.y < 0);
-                                        }
+                                        shrink_dir(&mut camera.span.x, &mut camera.origin.x, dir.x);
+                                        shrink_dir(&mut camera.span.y, &mut camera.origin.y, dir.y);
                                     } else {
-                                        data.camera.origin += dir;
+                                        camera.origin += dir;
                                     }
 
                                     data.update_viewport(false);

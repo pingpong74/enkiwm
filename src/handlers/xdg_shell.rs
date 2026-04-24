@@ -28,7 +28,6 @@ use smithay::{
 
 use crate::{
     grabs::{MoveSurfaceGrab, ResizeSurfaceGrab},
-    math::IVec2,
     Enki,
 };
 
