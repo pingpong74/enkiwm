@@ -1,29 +1,49 @@
-use smithay::desktop::{Space, Window};
-use std::collections::HashSet;
+// SPDX-License-Identifier: MPL-2.0
 
-pub struct Grid;
+use crate::math::IVec2;
+use smithay::{desktop::Window, utils::IsAlive};
+use std::collections::{HashMap, HashSet, VecDeque};
+
+pub struct Grid {
+    pub cells: HashMap<IVec2, Window>,
+}
 
 impl Grid {
-    pub fn find_first_empty_slot(
-        space: &Space<Window>,
-        block_width: i32,
-        block_height: i32,
-    ) -> (i32, i32) {
-        let mut occupied = HashSet::new();
+    pub fn new() -> Self {
+        Self {
+            cells: HashMap::new(),
+        }
+    }
 
-        for window in space.elements() {
-            if let Some(loc) = space.element_location(window) {
-                let idx = (loc.x / block_width, loc.y / block_height);
-                occupied.insert(idx);
+    pub fn find_nearest_empty(&self, start: IVec2) -> IVec2 {
+        let mut queue = VecDeque::new();
+        let mut visited = HashSet::new();
+
+        queue.push_back(start);
+        visited.insert(start);
+
+        while let Some(curr) = queue.pop_front() {
+            if !self.cells.contains_key(&curr) {
+                return curr;
+            }
+
+            for dir_flipped in IVec2::AXES {
+                let dir = dir_flipped * IVec2::FLIP_Y;
+                let next = curr + dir;
+                if !visited.contains(&next) {
+                    visited.insert(next);
+                    queue.push_back(next);
+                }
             }
         }
+        start
+    }
 
-        let mut target_idx = (0, 0);
+    pub fn insert(&mut self, pos: IVec2, window: Window) {
+        self.cells.insert(pos, window);
+    }
 
-        while occupied.contains(&target_idx) {
-            target_idx.0 += 1;
-        }
-
-        (target_idx.0 * block_width, target_idx.1 * block_height)
+    pub fn cleanup(&mut self) {
+        self.cells.retain(|_, window| window.alive());
     }
 }

@@ -27,7 +27,9 @@ use smithay::{
 };
 
 use crate::{
-    grabs::{MoveSurfaceGrab, ResizeSurfaceGrab}, layout, Enki
+    grabs::{MoveSurfaceGrab, ResizeSurfaceGrab},
+    math::IVec2,
+    Enki,
 };
 
 impl XdgShellHandler for Enki {
@@ -38,21 +40,30 @@ impl XdgShellHandler for Enki {
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         let window = Window::new_wayland_window(surface.clone());
 
-        // Fallback incase window opens before monitor is fully initialised
-        let (monitor_width, monitor_height) = self
+        let output_geometry = self
             .space
             .outputs()
             .next()
-            .and_then(|output| self.space.output_geometry(output))
-            .map(|geo| (geo.size.w, geo.size.h))
-            .unwrap_or((1920, 1080));
+            .and_then(|output| self.space.output_geometry(output));
 
-        
-        let grid = layout::Grid::find_first_empty_slot(&self.space, monitor_width, monitor_height);
+        let monitor_size = output_geometry
+            .map(|geo| geo.size.into())
+            .unwrap_or(IVec2::new(1920, 1080));
 
-        self.space.map_element(window, grid, false);
+        let camera_position = output_geometry
+            .map(|geo| geo.loc.into())
+            .unwrap_or(IVec2::ZERO);
+
+        let start_index = camera_position / monitor_size;
+        let target_index = self.grid.find_nearest_empty(start_index);
+
+        let pixel_position = target_index * monitor_size;
+
+        self.space.map_element(window.clone(), pixel_position, false);
+        self.grid.insert(target_index, window);
+
         surface.with_pending_state(|state| {
-            state.size = Some((monitor_width, monitor_height).into());
+            state.size = Some(monitor_size.into());
         });
 
         surface.send_configure();

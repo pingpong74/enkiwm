@@ -30,12 +30,13 @@ impl Enki {
                     time,
                     |data, _, handle| {
                         if event.state() == KeyState::Pressed {
-                            if handle.modified_sym() == Keysym::F12 {
+                            let sym = handle.modified_sym();
+                            tracing::info!("{sym:?}");
+                            if sym == Keysym::F12 {
                                 data.modal_mode = !data.modal_mode;
                                 return FilterResult::Intercept(());
                             }
                             if data.modal_mode {
-                                let sym = handle.modified_sym();
                                 let pan_offset_flipped = match sym {
                                     Keysym::l => Some(IVec2::X),
                                     Keysym::h => Some(IVec2::NEG_X),

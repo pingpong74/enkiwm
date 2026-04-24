@@ -24,6 +24,8 @@ use smithay::{
     },
 };
 
+use crate::layout::Grid;
+
 pub struct Enki {
     pub start_time: std::time::Instant,
     pub socket_name: OsString,
@@ -41,6 +43,7 @@ pub struct Enki {
     pub data_device_state: DataDeviceState,
     pub popups: PopupManager,
 
+    pub grid: Grid,
     pub modal_mode: bool,
 
     pub seat: Seat<Self>,
@@ -95,6 +98,9 @@ impl Enki {
         // Vim Mode
         let modal_mode = false;
 
+        // Layout engine
+        let grid = Grid::new();
+
         Self {
             start_time,
             display_handle: dh,
@@ -111,7 +117,8 @@ impl Enki {
             data_device_state,
             popups,
             seat,
-            modal_mode
+            modal_mode,
+            grid,
         }
     }
 

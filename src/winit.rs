@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 use std::time::Duration;
 
 use smithay::{
@@ -94,6 +96,7 @@ pub fn init_winit(
 
                 state.space.refresh();
                 state.popups.cleanup();
+                state.grid.cleanup();
                 let _ = state.display_handle.flush_clients();
 
                 // Ask for redraw to schedule new frame.
