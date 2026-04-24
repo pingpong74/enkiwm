@@ -24,7 +24,22 @@ use smithay::{
     },
 };
 
-use crate::layout::Grid;
+use crate::{layout::Grid, math::IVec2};
+
+pub struct Camera {
+    pub origin: IVec2,
+    pub span: IVec2,
+    // pub scale: f32,
+}
+
+impl Camera {
+    pub fn new() -> Self {
+        Self {
+            origin: IVec2::ZERO,
+            span: IVec2::ONE
+        }
+    }
+}
 
 pub struct Enki {
     pub start_time: std::time::Instant,
@@ -45,6 +60,7 @@ pub struct Enki {
 
     pub grid: Grid,
     pub modal_mode: bool,
+    pub camera: Camera,
 
     pub seat: Seat<Self>,
 }
@@ -101,6 +117,8 @@ impl Enki {
         // Layout engine
         let grid = Grid::new();
 
+        let camera = Camera::new();
+
         Self {
             start_time,
             display_handle: dh,
@@ -119,6 +137,7 @@ impl Enki {
             seat,
             modal_mode,
             grid,
+            camera
         }
     }
 
@@ -172,6 +191,28 @@ impl Enki {
                     .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
                     .map(|(s, p)| (s, (p + location).to_f64()))
             })
+    }
+
+    pub fn update_viewport(&mut self) {
+        let output = self.space.outputs().next().unwrap().clone();
+        let geo = self.space.output_geometry(&output).unwrap();
+        let monitor_size = IVec2::new(geo.size.w, geo.size.h);
+
+        let cell_size = monitor_size / self.camera.span;
+
+        // Resize and reposition every window
+        for (&grid_idx, window) in self.grid.cells.iter() {
+            let pixel_loc = grid_idx * cell_size;
+            self.space.map_element(window.clone(), pixel_loc, false);
+
+            window.toplevel().unwrap().with_pending_state(|state| {
+                state.size = Some(cell_size.into());
+            });
+            window.toplevel().unwrap().send_pending_configure();
+        }
+
+        let camera_pixel_loc = self.camera.origin * cell_size;
+        self.space.map_output(&output, camera_pixel_loc);
     }
 }
 

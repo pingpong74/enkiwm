@@ -12,6 +12,8 @@ use smithay::{
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     utils::SERIAL_COUNTER,
 };
+#[allow(unused_imports)]
+use tracing::info;
 
 use crate::{math::IVec2, state::Enki};
 
@@ -28,7 +30,7 @@ impl Enki {
                     event.state(),
                     serial,
                     time,
-                    |data, _, handle| {
+                    |data, modifiers, handle| {
                         if event.state() == KeyState::Pressed {
                             let sym = handle.modified_sym();
                             tracing::info!("{sym:?}");
@@ -37,31 +39,39 @@ impl Enki {
                                 return FilterResult::Intercept(());
                             }
                             if data.modal_mode {
-                                let pan_offset_flipped = match sym {
-                                    Keysym::l => Some(IVec2::X),
-                                    Keysym::h => Some(IVec2::NEG_X),
-                                    Keysym::j => Some(IVec2::NEG_Y),
-                                    Keysym::k => Some(IVec2::Y),
+                                let dir_flipped = match sym {
+                                    Keysym::l | Keysym::L => Some(IVec2::X),
+                                    Keysym::h | Keysym::H => Some(IVec2::NEG_X),
+                                    Keysym::j | Keysym::J => Some(IVec2::NEG_Y),
+                                    Keysym::k | Keysym::K => Some(IVec2::Y),
                                     _ => None,
                                 };
-                                if let Some(pan_offset_flipped) = pan_offset_flipped {
-                                    let pan_offset = pan_offset_flipped * IVec2::FLIP_Y;
-                                    let target_view =
-                                        data.space.outputs().next().cloned().and_then(|output| {
-                                            data.space
-                                                .output_geometry(&output)
-                                                .map(|geo| (output, geo.loc, geo.size))
-                                        });
+                                if let Some(dir_flipped) = dir_flipped {
+                                    let dir = dir_flipped * IVec2::FLIP_Y;
 
-                                    if let Some((output, loc, size)) = target_view {
-                                        let offset = pan_offset * IVec2::from_size(size);
-                                        let location = IVec2::from_point(loc) + offset;
-                                        data.space.map_output(&output, location);
-
-                                        data.space.elements().for_each(|window| {
-                                            window.toplevel().unwrap().send_pending_configure();
-                                        });
+                                    if modifiers.shift {
+                                        data.camera.span.x += dir.x.abs();
+                                        data.camera.origin.x -= i32::from(dir.x < 0);
+                                        data.camera.span.y += dir.y.abs();
+                                        data.camera.origin.y -= i32::from(dir.y < 0);
+                                    } else if modifiers.alt {
+                                        let span_x = (data.camera.span.x - dir.x.abs()).max(1);
+                                        if span_x != data.camera.span.x {
+                                            data.camera.span.x = span_x;
+                                            data.camera.origin.x += i32::from(dir.x < 0);
+                                        }
+                                        let span_y = (data.camera.span.y - dir.y.abs()).max(1);
+                                        if span_y != data.camera.span.y {
+                                            data.camera.span.y = span_y;
+                                            data.camera.origin.y += i32::from(dir.y < 0);
+                                        }
+                                    } else {
+                                        data.camera.origin += dir;
                                     }
+
+                                    data.update_viewport();
+
+                                    return FilterResult::Intercept(());
                                 }
 
                                 let program = match sym {

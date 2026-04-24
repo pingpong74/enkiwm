@@ -50,20 +50,20 @@ impl XdgShellHandler for Enki {
             .map(|geo| geo.size.into())
             .unwrap_or(IVec2::new(1920, 1080));
 
-        let camera_position = output_geometry
-            .map(|geo| geo.loc.into())
-            .unwrap_or(IVec2::ZERO);
+        // Calculate size based on the current viewport span
+        let cell_size = monitor_size / self.camera.span;
 
-        let start_index = camera_position / monitor_size;
+        let start_index = self.camera.origin;
         let target_index = self.grid.find_nearest_empty(start_index);
 
-        let pixel_position = target_index * monitor_size;
+        let pixel_position = target_index * cell_size;
 
-        self.space.map_element(window.clone(), pixel_position, false);
+        self.space
+            .map_element(window.clone(), pixel_position, false);
         self.grid.insert(target_index, window);
 
         surface.with_pending_state(|state| {
-            state.size = Some(monitor_size.into());
+            state.size = Some(cell_size.into());
         });
 
         surface.send_configure();
