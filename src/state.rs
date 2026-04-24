@@ -61,6 +61,7 @@ pub struct Enki {
     pub grid: Grid,
     pub modal_mode: bool,
     pub camera: Camera,
+    pub cell_cursor: IVec2,
 
     pub seat: Seat<Self>,
 }
@@ -119,6 +120,8 @@ impl Enki {
 
         let camera = Camera::new();
 
+        let cell_cursor = IVec2::ZERO;
+
         Self {
             start_time,
             display_handle: dh,
@@ -138,6 +141,7 @@ impl Enki {
             modal_mode,
             grid,
             camera,
+            cell_cursor,
         }
     }
 
@@ -235,6 +239,34 @@ impl Enki {
         let output = self.space.outputs().next().unwrap();
         let mode = output.current_mode().unwrap();
         mode.size.into()
+    }
+
+    pub fn set_cursor_focus(&mut self) {
+        let keyboard = self.seat.get_keyboard().unwrap();
+        let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+
+        if let Some(target_window) = self.grid.get(&self.cell_cursor) {
+            keyboard.set_focus(
+                self,
+                Some(target_window.toplevel().unwrap().wl_surface().clone()),
+                serial,
+            );
+
+            self.space.elements().for_each(|w| {
+                let in_marked_cell = w == &target_window;
+                // If not under marked cell and active, disable
+                if w.set_activated(in_marked_cell) {
+                    w.toplevel().unwrap().send_pending_configure();
+                }
+            });
+        } else {
+            keyboard.set_focus(self, None, serial);
+            self.space.elements().for_each(|w| {
+                if w.set_activated(false) {
+                    w.toplevel().unwrap().send_pending_configure();
+                }
+            });
+        }
     }
 }
 

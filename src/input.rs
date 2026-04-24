@@ -80,6 +80,32 @@ impl Enki {
                                     return FilterResult::Intercept(());
                                 }
 
+                                let focus_dir_flipped = match sym {
+                                    Keysym::u | Keysym::U => Some(IVec2::NEG_X),
+                                    Keysym::i | Keysym::I => Some(IVec2::NEG_Y),
+                                    Keysym::o | Keysym::O => Some(IVec2::Y),
+                                    Keysym::p | Keysym::P => Some(IVec2::X),
+                                    _ => None,
+                                };
+
+                                if let Some(focus_dir) = focus_dir_flipped {
+                                    let dir = focus_dir * IVec2::FLIP_Y;
+
+                                    if modifiers.shift {
+                                        let target_loc = data.cell_cursor + dir;
+                                        data.grid.swap(data.cell_cursor, target_loc);
+                                        data.cell_cursor = target_loc;
+
+                                        // Redraw on change
+                                        data.update_viewport(false);
+                                    } else {
+                                        data.cell_cursor += dir;
+                                    }
+
+                                    data.set_cursor_focus();
+                                    return FilterResult::Intercept(());
+                                }
+
                                 let program = match sym {
                                     Keysym::Return => Some("alacritty"),
                                     Keysym::w => Some("weston-terminal"),

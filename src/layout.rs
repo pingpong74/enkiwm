@@ -43,7 +43,33 @@ impl Grid {
         self.cells.insert(pos, window);
     }
 
+    pub fn get(&mut self, pos: &IVec2) -> Option<Window> {
+        self.cells.get(pos).cloned()
+    }
+
     pub fn cleanup(&mut self) {
         self.cells.retain(|_, window| window.alive());
+    }
+
+    pub fn swap(&mut self, src: IVec2, dst: IVec2) {
+        // if src != dst {
+        //     if let Some([a, b]) = self.cells.get_many_mut([&src, &dst]) {
+        //         std::mem::swap(a, b);
+        //     }
+
+        if src == dst {
+            return;
+        }
+
+        let src_window = self.cells.remove(&src);
+        let dst_window = self.cells.remove(&dst);
+
+        if let Some(src_window) = src_window {
+            self.cells.insert(dst, src_window);
+        }
+
+        if let Some(dst_window) = dst_window {
+            self.cells.insert(src, dst_window);
+        }
     }
 }
