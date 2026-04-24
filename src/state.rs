@@ -36,7 +36,7 @@ impl Camera {
     pub fn new() -> Self {
         Self {
             origin: IVec2::ZERO,
-            span: IVec2::ONE
+            span: IVec2::ONE,
         }
     }
 }
@@ -137,7 +137,7 @@ impl Enki {
             seat,
             modal_mode,
             grid,
-            camera
+            camera,
         }
     }
 
@@ -193,14 +193,12 @@ impl Enki {
             })
     }
 
-    pub fn update_viewport(&mut self) {
+    pub fn update_viewport(&mut self, modal_change: bool) {
         let output = self.space.outputs().next().unwrap().clone();
-        let geo = self.space.output_geometry(&output).unwrap();
-        let monitor_size = IVec2::new(geo.size.w, geo.size.h);
 
+        let monitor_size = self.base_monitor_size();
         let cell_size = monitor_size / self.camera.span;
 
-        // Resize and reposition every window
         for (&grid_idx, window) in self.grid.cells.iter() {
             let pixel_loc = grid_idx * cell_size;
             self.space.map_element(window.clone(), pixel_loc, false);
@@ -211,8 +209,32 @@ impl Enki {
             window.toplevel().unwrap().send_pending_configure();
         }
 
-        let camera_pixel_loc = self.camera.origin * cell_size;
-        self.space.map_output(&output, camera_pixel_loc);
+        let scale = if self.modal_mode { 0.75 } else { 1.0 };
+
+        if modal_change {
+            output.change_current_state(
+                None,
+                None,
+                Some(smithay::output::Scale::Fractional(scale)),
+                None,
+            );
+        }
+
+        let logical_size = IVec2::new(
+            (monitor_size.x as f64 / scale) as i32,
+            (monitor_size.y as f64 / scale) as i32,
+        );
+
+        let offset = (logical_size - monitor_size) / 2;
+        let base_loc = self.camera.origin * cell_size;
+
+        self.space.map_output(&output, base_loc - offset);
+    }
+
+    pub fn base_monitor_size(&self) -> IVec2 {
+        let output = self.space.outputs().next().unwrap();
+        let mode = output.current_mode().unwrap();
+        mode.size.into()
     }
 }
 

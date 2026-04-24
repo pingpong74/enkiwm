@@ -40,15 +40,7 @@ impl XdgShellHandler for Enki {
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         let window = Window::new_wayland_window(surface.clone());
 
-        let output_geometry = self
-            .space
-            .outputs()
-            .next()
-            .and_then(|output| self.space.output_geometry(output));
-
-        let monitor_size = output_geometry
-            .map(|geo| geo.size.into())
-            .unwrap_or(IVec2::new(1920, 1080));
+        let monitor_size = self.base_monitor_size();
 
         // Calculate size based on the current viewport span
         let cell_size = monitor_size / self.camera.span;

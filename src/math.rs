@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use smithay::utils::{Logical, Point, Size};
+use smithay::utils::{Point, Size};
 use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 use core::fmt;
@@ -75,24 +75,24 @@ impl IVec2 {
     }
 
     #[inline]
-    pub fn from_size(val: Size<i32, Logical>) -> Self {
+    pub fn from_size<K>(val: Size<i32, K>) -> Self {
         let val: (i32, i32) = val.into();
         Self { x: val.0, y: val.1 }
     }
 
     #[inline]
-    pub fn to_size(self) -> Size<i32, Logical> {
+    pub fn to_size<K>(self) -> Size<i32, K> {
         self.to_tuple().into()
     }
 
     #[inline]
-    pub fn from_point(val: Point<i32, Logical>) -> Self {
+    pub fn from_point<K>(val: Point<i32, K>) -> Self {
         let val: (i32, i32) = val.into();
         Self { x: val.0, y: val.1 }
     }
 
     #[inline]
-    pub fn to_point(self) -> Point<i32, Logical> {
+    pub fn to_point<K>(self) -> Point<i32, K> {
         self.to_tuple().into()
     }
 
@@ -877,28 +877,28 @@ impl From<IVec2> for (i32, i32) {
     }
 }
 
-impl From<IVec2> for Point<i32, Logical> {
+impl<K> From<IVec2> for Point<i32, K> {
     fn from(val: IVec2) -> Self {
-        let t: (i32, i32) = val.into();
+        let t = val.to_tuple();
         t.into()
     }
 }
 
-impl From<Point<i32, Logical>> for IVec2 {
-    fn from(val: Point<i32, Logical>) -> Self {
+impl<K> From<Point<i32, K>> for IVec2 {
+    fn from(val: Point<i32, K>) -> Self {
         Self::new(val.x, val.y)
     }
 }
 
-impl From<IVec2> for Size<i32, Logical> {
+impl<K> From<IVec2> for Size<i32, K> {
     fn from(val: IVec2) -> Self {
-        let t: (i32, i32) = val.into();
+        let t = val.to_tuple();
         t.into()
     }
 }
 
-impl From<Size<i32, Logical>> for IVec2 {
-    fn from(size: Size<i32, Logical>) -> Self {
+impl<K> From<Size<i32, K>> for IVec2 {
+    fn from(size: Size<i32, K>) -> Self {
         IVec2::new(size.w, size.h)
     }
 }

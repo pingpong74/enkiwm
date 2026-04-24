@@ -12,6 +12,7 @@ use smithay::{
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     utils::SERIAL_COUNTER,
 };
+
 #[allow(unused_imports)]
 use tracing::info;
 
@@ -33,9 +34,9 @@ impl Enki {
                     |data, modifiers, handle| {
                         if event.state() == KeyState::Pressed {
                             let sym = handle.modified_sym();
-                            tracing::info!("{sym:?}");
                             if sym == Keysym::F12 {
                                 data.modal_mode = !data.modal_mode;
+                                data.update_viewport(true);
                                 return FilterResult::Intercept(());
                             }
                             if data.modal_mode {
@@ -69,7 +70,7 @@ impl Enki {
                                         data.camera.origin += dir;
                                     }
 
-                                    data.update_viewport();
+                                    data.update_viewport(false);
 
                                     return FilterResult::Intercept(());
                                 }

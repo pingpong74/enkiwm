@@ -36,7 +36,7 @@ impl Grid {
                 }
             }
         }
-        start
+        unreachable!();
     }
 
     pub fn insert(&mut self, pos: IVec2, window: Window) {
