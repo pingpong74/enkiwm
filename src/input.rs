@@ -13,7 +13,7 @@ use smithay::{
     utils::SERIAL_COUNTER,
 };
 
-use crate::state::Enki;
+use crate::{math::IVec2, state::Enki};
 
 impl Enki {
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
@@ -36,14 +36,15 @@ impl Enki {
                             }
                             if data.modal_mode {
                                 let sym = handle.modified_sym();
-                                let pan_offset = match sym {
-                                    Keysym::l => Some((1, 0)),
-                                    Keysym::h => Some((-1, 0)),
-                                    Keysym::j => Some((0, -1)),
-                                    Keysym::k => Some((0, 1)),
+                                let pan_offset_flipped = match sym {
+                                    Keysym::l => Some(IVec2::X),
+                                    Keysym::h => Some(IVec2::NEG_X),
+                                    Keysym::j => Some(IVec2::NEG_Y),
+                                    Keysym::k => Some(IVec2::Y),
                                     _ => None,
                                 };
-                                if let Some((x, y)) = pan_offset {
+                                if let Some(pan_offset_flipped) = pan_offset_flipped {
+                                    let pan_offset = pan_offset_flipped * IVec2::FLIP_Y;
                                     let target_view =
                                         data.space.outputs().next().cloned().and_then(|output| {
                                             data.space
@@ -52,10 +53,9 @@ impl Enki {
                                         });
 
                                     if let Some((output, loc, size)) = target_view {
-                                        data.space.map_output(
-                                            &output,
-                                            (loc.x + size.w * x, loc.y - size.h * y),
-                                        );
+                                        let offset = pan_offset * IVec2::from_size(size);
+                                        let location = IVec2::from_point(loc) + offset;
+                                        data.space.map_output(&output, location);
 
                                         data.space.elements().for_each(|window| {
                                             window.toplevel().unwrap().send_pending_configure();
@@ -68,6 +68,7 @@ impl Enki {
                                     Keysym::w => Some("weston-terminal"),
                                     _ => None,
                                 };
+
                                 if let Some(program) = program {
                                     std::process::Command::new(program).spawn().ok();
                                 }

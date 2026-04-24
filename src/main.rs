@@ -9,6 +9,7 @@ mod input;
 mod state;
 mod winit;
 mod layout;
+mod math;
 
 use std::io::IsTerminal;
 
