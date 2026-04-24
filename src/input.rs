@@ -16,7 +16,7 @@ use smithay::{
 #[allow(unused_imports)]
 use tracing::info;
 
-use crate::{math::IVec2, state::Enki};
+use crate::{math::IVec2, state::Enki, command::Command::*};
 
 impl Enki {
     pub fn process_input_event<I: InputBackend>(&mut self, event: InputEvent<I>) {
@@ -107,14 +107,12 @@ impl Enki {
                                 }
 
                                 let program = match sym {
-                                    Keysym::Return => Some("alacritty"),
-                                    Keysym::w => Some("weston-terminal"),
-                                    _ => None,
+                                    Keysym::Return if modifiers.shift => Single("weston-terminal"),
+                                    Keysym::Return => Single("alacritty"),
+                                    Keysym::w => WithArgs(vec!["chromium", "--ozone-platform=wayland"]),
+                                    _ => Empty,
                                 };
-
-                                if let Some(program) = program {
-                                    std::process::Command::new(program).spawn().ok();
-                                }
+                                program.run();
 
                                 return FilterResult::Intercept(());
                             }

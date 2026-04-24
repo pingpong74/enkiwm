@@ -10,6 +10,7 @@ mod state;
 mod winit;
 mod layout;
 mod math;
+mod command;
 
 use std::io::IsTerminal;
 
