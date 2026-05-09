@@ -34,7 +34,7 @@ impl Enki {
                     |data, modifiers, handle| {
                         if event.state() == KeyState::Pressed {
                             let sym = handle.modified_sym();
-                            if sym == Keysym::F12 {
+                            if sym == Keysym::Alt_R {
                                 data.modal_mode = !data.modal_mode;
                                 data.update_viewport(true);
                                 return FilterResult::Intercept(());

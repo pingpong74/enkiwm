@@ -34,6 +34,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set WAYLAND_DISPLAY to our socket name, so child processes connect to Enki rather than the host compositor
     std::env::set_var("WAYLAND_DISPLAY", &state.socket_name);
     std::env::set_var("OZONE_PLATFORM", "wayland");
+    std::env::set_var("QT_QPA_PLATFORM", "wayland");
+
 
     // Spawn a test client, that will run under Enki
     spawn_client();
