@@ -18,3 +18,18 @@ impl<S : AsRef<OsStr>> Command<S> {
         };
     }
 }
+
+#[macro_export]
+macro_rules! cmd {
+    () => {
+        Command::Empty
+    };
+
+    ($program:expr) => {
+        Command::Single($program)
+    };
+
+    ($program:expr, $($arg:expr),+ $(,)?) => {
+        Command::WithArgs(vec![$program, $($arg),+])
+    };
+}
