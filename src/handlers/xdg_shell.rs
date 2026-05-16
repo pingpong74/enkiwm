@@ -55,6 +55,11 @@ impl XdgShellHandler for Enki {
 
         surface.with_pending_state(|state| {
             state.size = Some(cell_size.into());
+            // Disable most CSD
+            state.states.set(xdg_toplevel::State::TiledTop);
+            state.states.set(xdg_toplevel::State::TiledBottom);
+            state.states.set(xdg_toplevel::State::TiledLeft);
+            state.states.set(xdg_toplevel::State::TiledRight);
         });
 
         surface.send_configure();
@@ -206,8 +211,7 @@ pub fn handle_commit(popups: &mut PopupManager, space: &Space<Window>, surface: 
         match popup {
             PopupKind::Xdg(ref xdg) => {
                 if !xdg.is_initial_configure_sent() {
-                    // NOTE: This should never fail as the initial configure is always
-                    // allowed.
+                    // NOTE: This should never fail as the initial configure is always allowed.
                     xdg.send_configure().expect("initial configure failed");
                 }
             }
