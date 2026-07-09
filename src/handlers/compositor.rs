@@ -1,4 +1,7 @@
-use crate::{grabs::resize_grab, state::ClientState, Enki};
+use crate::{
+    grabs::resize_grab,
+    state::{ClientState, State},
+};
 use smithay::{
     backend::renderer::utils::on_commit_buffer_handler,
     delegate_compositor, delegate_shm,
@@ -9,7 +12,8 @@ use smithay::{
     wayland::{
         buffer::BufferHandler,
         compositor::{
-            get_parent, is_sync_subsurface, CompositorClientState, CompositorHandler, CompositorState,
+            get_parent, is_sync_subsurface, CompositorClientState, CompositorHandler,
+            CompositorState,
         },
         shm::{ShmHandler, ShmState},
     },
@@ -17,9 +21,9 @@ use smithay::{
 
 use super::xdg_shell;
 
-impl CompositorHandler for Enki {
+impl CompositorHandler for State {
     fn compositor_state(&mut self) -> &mut CompositorState {
-        &mut self.compositor_state
+        &mut self.enki.compositor_state
     }
 
     fn client_compositor_state<'a>(&self, client: &'a Client) -> &'a CompositorClientState {
@@ -28,13 +32,13 @@ impl CompositorHandler for Enki {
 
     fn commit(&mut self, surface: &WlSurface) {
         on_commit_buffer_handler::<Self>(surface);
-        // is desync
         if !is_sync_subsurface(surface) {
             let mut root = surface.clone();
             while let Some(parent) = get_parent(&root) {
                 root = parent;
             }
             if let Some(window) = self
+                .enki
                 .space
                 .elements()
                 .find(|w| w.toplevel().unwrap().wl_surface() == &root)
@@ -43,20 +47,20 @@ impl CompositorHandler for Enki {
             }
         };
 
-        xdg_shell::handle_commit(&mut self.popups, &self.space, surface);
-        resize_grab::handle_commit(&mut self.space, surface);
+        xdg_shell::handle_commit(&mut self.enki.popups, &self.enki.space, surface);
+        resize_grab::handle_commit(&mut self.enki.space, surface);
     }
 }
 
-impl BufferHandler for Enki {
+impl BufferHandler for State {
     fn buffer_destroyed(&mut self, _buffer: &wl_buffer::WlBuffer) {}
 }
 
-impl ShmHandler for Enki {
+impl ShmHandler for State {
     fn shm_state(&self) -> &ShmState {
-        &self.shm_state
+        &self.enki.shm_state
     }
 }
 
-delegate_compositor!(Enki);
-delegate_shm!(Enki);
+delegate_compositor!(State);
+delegate_shm!(State);

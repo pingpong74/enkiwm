@@ -4,45 +4,34 @@
 
 mod handlers;
 
+mod command;
 mod grabs;
-mod input;
-mod state;
-mod winit;
 mod layout;
 mod math;
-mod command;
+mod state;
 
 use std::io::IsTerminal;
 
 use smithay::reexports::{calloop::EventLoop, wayland_server::Display};
-pub use state::Enki;
+use state::State;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
 
-    let mut event_loop: EventLoop<Enki> = EventLoop::try_new()?;
+    let mut event_loop: EventLoop<State> = EventLoop::try_new()?;
 
-    let display: Display<Enki> = Display::new()?;
+    let display: Display<State> = Display::new()?;
 
-    let mut state = Enki::new(&mut event_loop, display);
+    let mut state = State::new(&mut event_loop, display);
 
-    // Open a Wayland/X11 window for our nested compositor
-    crate::winit::init_winit(&mut event_loop, &mut state)?;
-
-    // Env vars to setup stable wayland functionallity
     std::env::remove_var("DISPLAY");
-    // Set WAYLAND_DISPLAY to our socket name, so child processes connect to Enki rather than the host compositor
-    std::env::set_var("WAYLAND_DISPLAY", &state.socket_name);
+    std::env::set_var("WAYLAND_DISPLAY", &state.enki.socket_name);
     std::env::set_var("OZONE_PLATFORM", "wayland");
     std::env::set_var("QT_QPA_PLATFORM", "wayland");
 
-
-    // Spawn a test client, that will run under Enki
     spawn_client();
 
-    event_loop.run(None, &mut state, move |_| {
-        // Enki is running
-    })?;
+    event_loop.run(None, &mut state, move |_| {})?;
 
     Ok(())
 }
@@ -66,7 +55,7 @@ fn spawn_client() {
             std::process::Command::new(command).spawn().ok();
         }
         _ => {
-            std::process::Command::new("alacritty").spawn().ok();
+            std::process::Command::new("kitty").spawn().ok();
         }
     }
 }

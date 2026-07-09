@@ -1,7 +1,7 @@
 mod compositor;
 mod xdg_shell;
 
-use crate::Enki;
+use crate::state::State;
 
 //
 // Wl Seat
@@ -20,42 +20,48 @@ use smithay::wayland::selection::data_device::{
 use smithay::wayland::selection::SelectionHandler;
 use smithay::{delegate_data_device, delegate_output, delegate_seat};
 
-impl SeatHandler for Enki {
+impl SeatHandler for State {
     type KeyboardFocus = WlSurface;
     type PointerFocus = WlSurface;
     type TouchFocus = WlSurface;
 
-    fn seat_state(&mut self) -> &mut SeatState<Enki> {
-        &mut self.seat_state
+    fn seat_state(&mut self) -> &mut SeatState<State> {
+        &mut self.enki.seat_state
     }
 
-    fn cursor_image(&mut self, _seat: &Seat<Self>, _image: smithay::input::pointer::CursorImageStatus) {}
+    fn cursor_image(
+        &mut self,
+        _seat: &Seat<Self>,
+        _image: smithay::input::pointer::CursorImageStatus,
+    ) {
+    }
 
     fn focus_changed(&mut self, seat: &Seat<Self>, focused: Option<&WlSurface>) {
-        let dh = &self.display_handle;
+        let dh = &self.enki.display_handle;
         let client = focused.and_then(|s| dh.get_client(s.id()).ok());
         set_data_device_focus(dh, seat, client);
     }
 }
 
-delegate_seat!(Enki);
+delegate_seat!(State);
 
 //
 // Wl Data Device
 //
 
-impl SelectionHandler for Enki {
+impl SelectionHandler for State {
     type SelectionUserData = ();
 }
 
-impl DataDeviceHandler for Enki {
+impl DataDeviceHandler for State {
     fn data_device_state(&mut self) -> &mut DataDeviceState {
-        &mut self.data_device_state
+        &mut self.enki.data_device_state
     }
 }
 
-impl DndGrabHandler for Enki {}
-impl WaylandDndGrabHandler for Enki {
+impl DndGrabHandler for State {}
+
+impl WaylandDndGrabHandler for State {
     fn dnd_requested<S: Source>(
         &mut self,
         source: S,
@@ -69,23 +75,22 @@ impl WaylandDndGrabHandler for Enki {
                 let ptr = seat.get_pointer().unwrap();
                 let start_data = ptr.grab_start_data().unwrap();
 
-                // create a dnd grab to start the operation
-                let grab = DnDGrab::new_pointer(&self.display_handle, start_data, source, seat);
+                let grab =
+                    DnDGrab::new_pointer(&self.enki.display_handle, start_data, source, seat);
                 ptr.set_grab(self, grab, serial, Focus::Keep);
             }
             GrabType::Touch => {
-                // smallvil lacks touch handling
                 source.cancel();
             }
         }
     }
 }
 
-delegate_data_device!(Enki);
+delegate_data_device!(State);
 
 //
 // Wl Output & Xdg Output
 //
 
-impl OutputHandler for Enki {}
-delegate_output!(Enki);
+impl OutputHandler for State {}
+delegate_output!(State);
