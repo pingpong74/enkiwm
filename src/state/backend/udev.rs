@@ -60,7 +60,7 @@ const SUPPORTED_FORMATS_8BIT_ONLY: &[Fourcc] = &[
     Fourcc::Argb8888,
 ];
 
-// represents a gpu
+// Represents a gpu
 pub struct DeviceData {
     output_manager: UdevOutputManager,
     drm_scanner: DrmScanner,
@@ -69,11 +69,12 @@ pub struct DeviceData {
     registration_token: RegistrationToken,
 }
 
-// represents a monitor
+// Represents a monitor
 pub struct OutputData {
     output: Output,
     drm_output: UdevDrmOutput,
     global: GlobalId,
+    is_pending: bool,
 }
 
 pub struct UdevData {
@@ -94,7 +95,7 @@ impl UdevData {
 
         let input_backend = LibinputInputBackend::new(lib_input.clone());
 
-        // insert the input sources
+        // Insert the input sources
         event_loop.handle().insert_source(input_backend, |event, _, state| {
             state.process_input_event(event);
         })?;
@@ -102,14 +103,13 @@ impl UdevData {
         event_loop
             .handle()
             .insert_source(notifier, move |event, _, state| match event {
-                // tty switching needs to be handled here.
+                // TTY switching needs to be handled here.
                 SessionEvent::ActivateSession => {
                     info!("Session activated, becomong the DRM master ");
 
                     state.backend.udev().input.resume().unwrap();
 
                     for device in state.backend.udev().devices.values_mut() {
-                        // idk if this should be truoe or false.
                         if let Err(err) = device.output_manager.device_mut().activate(true) {
                             tracing::error!("Failed to acquire DRM master on activate: field {:?}", err);
                         }
@@ -131,7 +131,7 @@ impl UdevData {
             let primary_gpu_path = udev::primary_gpu(&session.seat())?.unwrap();
             let primary_node = DrmNode::from_path(&primary_gpu_path)?;
             let primary_render_node = primary_node.node_with_type(smithay::backend::drm::NodeType::Render).and_then(Result::ok).unwrap_or_else(|| {
-                warn_span!("error getting the render node for the primary GPU; proceeding anyway");
+                warn_span!("Error getting the Render Node for the primary GPU; Proceeding anyway");
                 primary_node
             });
 
@@ -145,7 +145,7 @@ impl UdevData {
             write!(node_path, "{primary_render_node}").unwrap();
         }
 
-        info!("using as the render node: {node_path}");
+        info!("Using as the render node: {node_path}.");
 
         Ok(Self {
             session,
@@ -164,7 +164,7 @@ impl UdevData {
                 continue;
             };
             if let Err(err) = self.device_added(node, path, enki) {
-                warn!("failed to add device {node}: {err}");
+                warn!("Failed to add device {node}: {err}");
                 continue;
             }
             self.device_changed(node, enki);
@@ -180,7 +180,7 @@ impl UdevData {
                 };
                 let backend = state.backend.udev();
                 if let Err(err) = backend.device_added(node, &path, &mut state.enki) {
-                    warn!("failed to add device {node}: {err}");
+                    warn!("Failed to add device {node}: {err}");
                     return;
                 }
                 backend.device_changed(node, &mut state.enki);
@@ -201,7 +201,7 @@ impl UdevData {
     }
 }
 
-// these are all udev event functions
+// These are all udev event functions
 impl UdevData {
     fn device_added(&mut self, node: DrmNode, path: &Path, enki: &mut Enki) -> Result<(), Box<dyn std::error::Error>> {
         // Try to open the device
@@ -216,7 +216,7 @@ impl UdevData {
             .loop_handle
             .insert_source(notifier, move |event, metadata, data: &mut State| match event {
                 DrmEvent::VBlank(crtc) => {
-                    data.backend.udev().on_vblank(node, crtc, metadata, &data.enki.space);
+                    data.backend.udev().on_vblank(node, crtc, metadata, &mut data.enki);
                 }
                 DrmEvent::Error(error) => {
                     error!("{:?}", error);
@@ -224,18 +224,18 @@ impl UdevData {
             })
             .unwrap();
 
-        let try_initialize_gpu = || -> Result<DrmNode, Box<dyn std::error::Error>> {
+        let mut try_initialize_gpu = || -> Result<DrmNode, Box<dyn std::error::Error>> {
             let display = unsafe { EGLDisplay::new(gbm.clone())? };
             let egl_device = EGLDevice::device_for_display(&display)?;
-            if egl_device.is_software() {
-                return Err("refusing to use a software EGL device as a render node".into());
-            }
-            Ok(egl_device.try_get_render_node().ok().flatten().unwrap_or(node))
+            
+            let render_node = egl_device.try_get_render_node().ok().flatten().unwrap_or(node);
+            self.gpu_manager.as_mut().add_node(render_node, gbm.clone())?;
+            Ok(render_node)
         };
 
         let render_node = try_initialize_gpu()
             .inspect_err(|err| {
-                warn!(?err, "failed to initialize gpu");
+                warn!(?err, "Failed to initialize gpu");
             })
             .ok();
 
@@ -275,7 +275,7 @@ impl UdevData {
             DeviceData {
                 registration_token,
                 output_manager: drm_output_manager,
-                render_node: render_node,
+                render_node,
                 drm_scanner: DrmScanner::new(),
                 surfaces: HashMap::new(),
             },
@@ -294,7 +294,7 @@ impl UdevData {
         let scan_result = match device.drm_scanner.scan_connectors(device.output_manager.device()) {
             Ok(result) => result,
             Err(err) => {
-                warn!("failed to scan connectors: {err}");
+                warn!("Failed to scan connectors: {err}");
                 return;
             }
         };
@@ -342,7 +342,7 @@ impl UdevData {
 
         let mode_id = connector.modes().iter().position(|mode| mode.mode_type().contains(ModeTypeFlags::PREFERRED)).unwrap_or(0);
         let Some(drm_mode) = connector.modes().get(mode_id).copied() else {
-            warn!("connector {:?} has no modes", connector.handle());
+            warn!("Connector {:?} has no modes", connector.handle());
             return;
         };
         let wl_mode = WlMode::from(drm_mode);
@@ -370,7 +370,7 @@ impl UdevData {
         let mut renderer = match self.gpu_manager.single_renderer(&render_node) {
             Ok(renderer) => renderer,
             Err(err) => {
-                warn!("failed to get renderer: {err}");
+                warn!("Failed to get renderer: {err}");
                 return;
             }
         };
@@ -386,7 +386,7 @@ impl UdevData {
         ) {
             Ok(drm_output) => drm_output,
             Err(err) => {
-                warn!("failed to initialize drm output: {err}");
+                warn!("Failed to initialize DRM output: {err}");
                 return;
             }
         };
@@ -397,6 +397,7 @@ impl UdevData {
                 output,
                 global,
                 drm_output,
+                is_pending: false,
             },
         );
     }
@@ -413,6 +414,25 @@ impl UdevData {
 }
 
 impl UdevData {
+    pub fn render_all(&mut self, space: &Space<Window>) {
+        let nodes: Vec<_> = self.devices.keys().copied().collect();
+        for node in nodes {
+            if let Some(device) = self.devices.get(&node) {
+                let crtcs: Vec<_> = device.surfaces.keys().copied().collect();
+                for crtc in crtcs {
+                    let is_pending = {
+                        let device = self.devices.get(&node).unwrap();
+                        let surface = device.surfaces.get(&crtc).unwrap();
+                        surface.is_pending
+                    };
+                    if !is_pending {
+                        self.render_surface(node, crtc, space);
+                    }
+                }
+            }
+        }
+    }
+
     fn render_surface(&mut self, node: DrmNode, crtc: crtc::Handle, space: &Space<Window>) {
         let Some(device) = self.devices.get_mut(&node) else {
             return;
@@ -425,7 +445,7 @@ impl UdevData {
         let mut renderer = match self.gpu_manager.single_renderer(&render_node) {
             Ok(renderer) => renderer,
             Err(err) => {
-                warn!("failed to get renderer: {err}");
+                warn!("Failed to get renderer: {err}");
                 return;
             }
         };
@@ -433,7 +453,7 @@ impl UdevData {
         let elements = match smithay::desktop::space::space_render_elements::<_, Window, _>(&mut renderer, [space], &surface.output, 1.0) {
             Ok(elements) => elements,
             Err(err) => {
-                warn!("failed to collect render elements: {err:?}");
+                warn!("Failed to collect render elements: {err:?}");
                 return;
             }
         };
@@ -442,23 +462,36 @@ impl UdevData {
             Ok(result) => {
                 if !result.is_empty {
                     if let Err(err) = surface.drm_output.queue_frame(None) {
-                        warn!("failed to queue frame: {err:?}");
+                        warn!("Failed to queue frame: {err:?}");
+                    } else {
+                        surface.is_pending = true;
                     }
                 }
             }
-            Err(err) => warn!("render error: {err:?}"),
+            Err(err) => warn!("Render error: {err:?}"),
         }
     }
 
-    fn on_vblank(&mut self, node: DrmNode, crtc: crtc::Handle, _metadata: &mut Option<DrmEventMetadata>, space: &Space<Window>) {
+    fn on_vblank(&mut self, node: DrmNode, crtc: crtc::Handle, _metadata: &mut Option<DrmEventMetadata>, enki: &mut Enki) {
         if let Some(device) = self.devices.get_mut(&node) {
             if let Some(surface) = device.surfaces.get_mut(&crtc) {
+                surface.is_pending = false;
                 if let Err(err) = surface.drm_output.frame_submitted() {
-                    warn!("frame_submitted error: {err:?}");
+                    warn!("Frame_submitted error: {err:?}");
                 }
+                
+                let output = surface.output.clone();
+                let time = enki.start_time.elapsed();
+                enki.space.elements().for_each(|window| {
+                    window.send_frame(&output, time, Some(std::time::Duration::ZERO), |_, _| Some(output.clone()));
+                });
+                enki.space.refresh();
+                enki.popups.cleanup();
+                enki.grid.cleanup();
+                let _ = enki.display_handle.flush_clients();
             }
         }
 
-        self.render_surface(node, crtc, space);
+        self.render_surface(node, crtc, &enki.space);
     }
 }

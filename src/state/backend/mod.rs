@@ -46,6 +46,13 @@ impl Backend {
         }
     }
 
+    pub fn event_loop_tick(&mut self, space: &Space<Window>) {
+        match self {
+            Backend::Winit(_) => {}
+            Backend::Udev(u) => u.render_all(space),
+        }
+    }
+
     pub fn winit(&mut self) -> &mut WinitData {
         match self {
             Self::Winit(w) => w,

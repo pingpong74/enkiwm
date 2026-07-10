@@ -31,7 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     spawn_client();
 
-    event_loop.run(None, &mut state, move |_| {})?;
+    event_loop.run(None, &mut state, move |state| {
+        let _ = state.enki.display_handle.flush_clients();
+        state.enki.space.refresh();
+        state.enki.popups.cleanup();
+        state.enki.grid.cleanup();
+        state.backend.event_loop_tick(&state.enki.space);
+    })?;
 
     Ok(())
 }
@@ -55,7 +61,7 @@ fn spawn_client() {
             std::process::Command::new(command).spawn().ok();
         }
         _ => {
-            std::process::Command::new("kitty").spawn().ok();
+            std::process::Command::new("alacritty").spawn().ok();
         }
     }
 }
