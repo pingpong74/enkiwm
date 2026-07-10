@@ -3,17 +3,18 @@
 //! eg. Usually whenever a user clicks on the app's border and starts dragging, the compositors
 //! enters a ResizeSurfaceGrab state.
 
-use crate::Enki;
+use crate::state::State;
 use smithay::{
     desktop::{Space, Window},
     input::pointer::{
         AxisFrame, ButtonEvent, GestureHoldBeginEvent, GestureHoldEndEvent, GesturePinchBeginEvent,
-        GesturePinchEndEvent, GesturePinchUpdateEvent, GestureSwipeBeginEvent, GestureSwipeEndEvent,
-        GestureSwipeUpdateEvent, GrabStartData as PointerGrabStartData, MotionEvent, PointerGrab,
-        PointerInnerHandle, RelativeMotionEvent,
+        GesturePinchEndEvent, GesturePinchUpdateEvent, GestureSwipeBeginEvent,
+        GestureSwipeEndEvent, GestureSwipeUpdateEvent, GrabStartData as PointerGrabStartData,
+        MotionEvent, PointerGrab, PointerInnerHandle, RelativeMotionEvent,
     },
     reexports::{
-        wayland_protocols::xdg::shell::server::xdg_toplevel, wayland_server::protocol::wl_surface::WlSurface,
+        wayland_protocols::xdg::shell::server::xdg_toplevel,
+        wayland_server::protocol::wl_surface::WlSurface,
     },
     utils::{Logical, Point, Rectangle, Size},
     wayland::{compositor, shell::xdg::SurfaceCachedState},
@@ -44,7 +45,7 @@ impl From<xdg_toplevel::ResizeEdge> for ResizeEdge {
 }
 
 pub struct ResizeSurfaceGrab {
-    start_data: PointerGrabStartData<Enki>,
+    start_data: PointerGrabStartData<State>,
     window: Window,
 
     edges: ResizeEdge,
@@ -55,7 +56,7 @@ pub struct ResizeSurfaceGrab {
 
 impl ResizeSurfaceGrab {
     pub fn start(
-        start_data: PointerGrabStartData<Enki>,
+        start_data: PointerGrabStartData<State>,
         window: Window,
         edges: ResizeEdge,
         initial_window_rect: Rectangle<i32, Logical>,
@@ -63,7 +64,10 @@ impl ResizeSurfaceGrab {
         let initial_rect = initial_window_rect;
 
         ResizeSurfaceState::with(window.toplevel().unwrap().wl_surface(), |state| {
-            *state = ResizeSurfaceState::Resizing { edges, initial_rect };
+            *state = ResizeSurfaceState::Resizing {
+                edges,
+                initial_rect,
+            };
         });
 
         Self {
@@ -76,11 +80,11 @@ impl ResizeSurfaceGrab {
     }
 }
 
-impl PointerGrab<Enki> for ResizeSurfaceGrab {
+impl PointerGrab<State> for ResizeSurfaceGrab {
     fn motion(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         _focus: Option<(WlSurface, Point<f64, Logical>)>,
         event: &MotionEvent,
     ) {
@@ -118,8 +122,16 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
         let min_width = min_size.w.max(1);
         let min_height = min_size.h.max(1);
 
-        let max_width = if max_size.w == 0 { i32::MAX } else { max_size.w };
-        let max_height = if max_size.h == 0 { i32::MAX } else { max_size.h };
+        let max_width = if max_size.w == 0 {
+            i32::MAX
+        } else {
+            max_size.w
+        };
+        let max_height = if max_size.h == 0 {
+            i32::MAX
+        } else {
+            max_size.h
+        };
 
         self.last_window_size = Size::from((
             new_window_width.max(min_width).min(max_width),
@@ -137,8 +149,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn relative_motion(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         focus: Option<(WlSurface, Point<f64, Logical>)>,
         event: &RelativeMotionEvent,
     ) {
@@ -147,8 +159,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn button(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &ButtonEvent,
     ) {
         handle.button(data, event);
@@ -180,21 +192,21 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn axis(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         details: AxisFrame,
     ) {
         handle.axis(data, details)
     }
 
-    fn frame(&mut self, data: &mut Enki, handle: &mut PointerInnerHandle<'_, Enki>) {
+    fn frame(&mut self, data: &mut State, handle: &mut PointerInnerHandle<'_, State>) {
         handle.frame(data);
     }
 
     fn gesture_swipe_begin(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GestureSwipeBeginEvent,
     ) {
         handle.gesture_swipe_begin(data, event)
@@ -202,8 +214,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn gesture_swipe_update(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GestureSwipeUpdateEvent,
     ) {
         handle.gesture_swipe_update(data, event)
@@ -211,8 +223,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn gesture_swipe_end(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GestureSwipeEndEvent,
     ) {
         handle.gesture_swipe_end(data, event)
@@ -220,8 +232,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn gesture_pinch_begin(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GesturePinchBeginEvent,
     ) {
         handle.gesture_pinch_begin(data, event)
@@ -229,8 +241,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn gesture_pinch_update(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GesturePinchUpdateEvent,
     ) {
         handle.gesture_pinch_update(data, event)
@@ -238,8 +250,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn gesture_pinch_end(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GesturePinchEndEvent,
     ) {
         handle.gesture_pinch_end(data, event)
@@ -247,8 +259,8 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn gesture_hold_begin(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GestureHoldBeginEvent,
     ) {
         handle.gesture_hold_begin(data, event)
@@ -256,18 +268,18 @@ impl PointerGrab<Enki> for ResizeSurfaceGrab {
 
     fn gesture_hold_end(
         &mut self,
-        data: &mut Enki,
-        handle: &mut PointerInnerHandle<'_, Enki>,
+        data: &mut State,
+        handle: &mut PointerInnerHandle<'_, State>,
         event: &GestureHoldEndEvent,
     ) {
         handle.gesture_hold_end(data, event)
     }
 
-    fn start_data(&self) -> &PointerGrabStartData<Enki> {
+    fn start_data(&self) -> &PointerGrabStartData<State> {
         &self.start_data
     }
 
-    fn unset(&mut self, _data: &mut Enki) {}
+    fn unset(&mut self, _data: &mut State) {}
 }
 
 /// State of the resize operation.
@@ -306,8 +318,14 @@ impl ResizeSurfaceState {
 
     fn commit(&mut self) -> Option<(ResizeEdge, Rectangle<i32, Logical>)> {
         match *self {
-            Self::Resizing { edges, initial_rect } => Some((edges, initial_rect)),
-            Self::WaitingForLastCommit { edges, initial_rect } => {
+            Self::Resizing {
+                edges,
+                initial_rect,
+            } => Some((edges, initial_rect)),
+            Self::WaitingForLastCommit {
+                edges,
+                initial_rect,
+            } => {
                 // The resize is done, let's go back to idle
                 *self = Self::Idle;
 

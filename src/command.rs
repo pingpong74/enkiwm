@@ -5,7 +5,7 @@ pub enum Command<S: AsRef<OsStr>> {
     WithArgs(Vec<S>),
 }
 
-impl<S : AsRef<OsStr>> Command<S> {
+impl<S: AsRef<OsStr>> Command<S> {
     pub fn run(self) {
         match self {
             Command::Single(program) => std::process::Command::new(program).spawn().ok(),
