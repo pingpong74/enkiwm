@@ -25,8 +25,6 @@ impl State {
     pub fn new(event_loop: &mut smithay::reexports::calloop::EventLoop<'static, Self>, display: smithay::reexports::wayland_server::Display<Self>) -> Self {
         let mut backend = backend::Backend::Udev(backend::udev::UdevData::new(event_loop).unwrap());
         let mut enki = enki::Enki::new(display, event_loop, &backend.seat_name());
-        //let mut backend =
-        //    backend::Backend::Winit(backend::winit::WinitData::new(event_loop).unwrap());
 
         backend.init(event_loop, &mut enki).unwrap();
 
@@ -84,6 +82,12 @@ impl State {
                     .input::<(), _>(self, event.key_code(), event.state(), serial, time, |data, modifiers, handle| {
                         if event.state() == KeyState::Pressed {
                             let sym = handle.modified_sym();
+
+                            // For quitting the compositor
+                            if modifiers.ctrl && modifiers.alt && sym == Keysym::q {
+                                data.enki.loop_signal.stop();
+                            }
+
                             if sym == Keysym::Alt_R {
                                 data.enki.modal_mode = !data.enki.modal_mode;
                                 data.enki.update_viewport(true);
